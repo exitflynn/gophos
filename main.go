@@ -3,7 +3,9 @@ package main
 import (
 	"fmt"
 	"io/ioutil"
+	"log"
 	"net/http"
+	"os"
 	"strings"
 )
 
@@ -53,8 +55,13 @@ func logout(username string) (string, error) {
 }
 
 func main() {
-	username := "enroll_id"
-	password := "password"
+	// Retrieve username and password from environment variables
+	username := os.Getenv("SOPHOS_USERNAME")
+	password := os.Getenv("SOPHOS_PASSWORD")
+
+	if username == "" || password == "" {
+		log.Fatalln("Environment variables SOPHOS_USERNAME and SOPHOS_PASSWORD must be set")
+	}
 
 	loginResult, err := login(username, password)
 	if err != nil {
